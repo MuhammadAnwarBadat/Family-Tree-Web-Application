@@ -2,11 +2,15 @@ from graphviz import Digraph
 import psycopg2
 
 def connect_to_db():
-    conn = psycopg2.connect(
-        dbname="family-tree-db", user="postgres",
-        password="qrc135zx", host="localhost"
-    )
-    return conn
+    try:
+        conn = psycopg2.connect(
+            dbname="family-tree-db", user="postgres",
+            password="qrc135zx", host="localhost"
+        )
+        return conn
+    except psycopg2.Error as e:
+        print(f"Database connection failed: {e}")
+        return None
 
 def add_person(first_name, middle_name, last_name, gender, mother_id=None, father_id=None):
     conn = connect_to_db()
@@ -147,6 +151,7 @@ def main_menu():
         print("3. View family members")
         print("4. Show tree structure")
         print("5. Exit")
+        print("6. Delete a person and relationships")
         choice = input("Enter choice: ")
 
         if choice == '1':
