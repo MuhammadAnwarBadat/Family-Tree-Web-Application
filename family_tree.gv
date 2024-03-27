@@ -1,4 +1,10 @@
 // Family Tree
 digraph {
-	1 [label="M Badat"]
+	2 [label="Junaid Badat"]
+	3 [label="M Mastoi"]
+	2 -> 3 [label=Son]
+	3 [label="M Mastoi"]
+	2 -> 3 [label=Son]
+	5 [label="Fatima Junaid"]
+	2 -> 5 [label=Daughter]
 }
