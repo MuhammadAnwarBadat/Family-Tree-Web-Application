@@ -8,18 +8,18 @@ def connect_to_db():
     )
     return conn
 
-# def add_person(first_name, middle_name, last_name, gender, mother_id=None, father_id=None):
-#     conn = connect_to_db()
-#     cur = conn.cursor()
-#     cur.execute("""
-#         INSERT INTO persons (first_name, middle_name, last_name, gender, mother_id, father_id)
-#         VALUES (%s, %s, %s, %s, %s, %s) RETURNING person_id;
-#     """, (first_name, middle_name, last_name, gender, mother_id, father_id))
-#     person_id = cur.fetchone()[0]
-#     conn.commit()
-#     cur.close()
-#     conn.close()
-#     print(f"Person added with ID: {person_id}")
+def add_person(first_name, middle_name, last_name, gender, mother_id=None, father_id=None):
+    conn = connect_to_db()
+    cur = conn.cursor()
+    cur.execute("""
+        INSERT INTO persons (first_name, middle_name, last_name, gender, mother_id, father_id)
+        VALUES (%s, %s, %s, %s, %s, %s) RETURNING person_id;
+    """, (first_name, middle_name, last_name, gender, mother_id, father_id))
+    person_id = cur.fetchone()[0]
+    conn.commit()
+    cur.close()
+    conn.close()
+    print(f"Person added with ID: {person_id}")
 
 def add_child(first_name, middle_name, last_name, gender, parent_id):
     conn = connect_to_db()
@@ -117,7 +117,28 @@ def generate_tree_graph(person_id):
 
     cur.close()
     conn.close()
-    
+
+
+def delete_person_and_relationships(person_id):
+    conn = connect_to_db()
+    cur = conn.cursor()
+
+    # Delete relationships where the person is involved
+    cur.execute("""
+        DELETE FROM relationships WHERE person_id1 = %s OR person_id2 = %s;
+    """, (person_id, person_id))
+
+    # Delete the person from the persons table
+    cur.execute("""
+        DELETE FROM persons WHERE person_id = %s;
+    """, (person_id,))
+
+    conn.commit()
+
+    cur.close()
+    conn.close()
+    print(f"Person with ID: {person_id} and all related relationships have been deleted.")
+
 def main_menu():
     while True:
         print("\nFamily Tree App")
@@ -146,6 +167,9 @@ def main_menu():
             generate_tree_graph(person_id)
         elif choice == '5':
             break
+        elif choice == '6':  # Assuming you add this as the next menu item
+            person_id = input("Enter person ID to delete: ")
+            delete_person_and_relationships(person_id)
         else:
             print("Invalid choice. Please choose again.")
 
