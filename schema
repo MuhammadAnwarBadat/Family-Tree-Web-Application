@@ -1,0 +1,15 @@
+CREATE TABLE persons (
+    person_id SERIAL PRIMARY KEY,
+    first_name VARCHAR(100),
+    middle_name VARCHAR(100),
+    last_name VARCHAR(100),
+    gender VARCHAR(10),
+    mother_id INTEGER REFERENCES persons(person_id),
+    father_id INTEGER REFERENCES persons(person_id)
+);
+
+CREATE TABLE relationships (
+    person_id1 INTEGER REFERENCES persons(person_id),
+    person_id2 INTEGER REFERENCES persons(person_id),
+    relationship_type VARCHAR(50)
+);
