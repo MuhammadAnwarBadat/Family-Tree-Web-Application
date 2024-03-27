@@ -1,0 +1,4 @@
+// Family Tree
+digraph {
+	1 [label="M Badat"]
+}

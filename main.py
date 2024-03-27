@@ -1,3 +1,4 @@
+from graphviz import Digraph
 import psycopg2
 
 def connect_to_db():
@@ -7,18 +8,38 @@ def connect_to_db():
     )
     return conn
 
-def add_person(first_name, middle_name, last_name, gender, mother_id=None, father_id=None):
+# def add_person(first_name, middle_name, last_name, gender, mother_id=None, father_id=None):
+#     conn = connect_to_db()
+#     cur = conn.cursor()
+#     cur.execute("""
+#         INSERT INTO persons (first_name, middle_name, last_name, gender, mother_id, father_id)
+#         VALUES (%s, %s, %s, %s, %s, %s) RETURNING person_id;
+#     """, (first_name, middle_name, last_name, gender, mother_id, father_id))
+#     person_id = cur.fetchone()[0]
+#     conn.commit()
+#     cur.close()
+#     conn.close()
+#     print(f"Person added with ID: {person_id}")
+
+def add_child(first_name, middle_name, last_name, gender, parent_id):
     conn = connect_to_db()
     cur = conn.cursor()
+
+    # Add the new child to the database
     cur.execute("""
         INSERT INTO persons (first_name, middle_name, last_name, gender, mother_id, father_id)
-        VALUES (%s, %s, %s, %s, %s, %s) RETURNING person_id;
-    """, (first_name, middle_name, last_name, gender, mother_id, father_id))
-    person_id = cur.fetchone()[0]
+        VALUES (%s, %s, %s, %s, NULL, %s) RETURNING person_id;
+    """, (first_name, middle_name, last_name, gender, parent_id))
+
+    new_child_id = cur.fetchone()[0]
     conn.commit()
+
+    # Automatically update sibling relationships
+    update_sibling_relationships(new_child_id, parent_id)
+
     cur.close()
     conn.close()
-    print(f"Person added with ID: {person_id}")
+    print(f"Child added with ID: {new_child_id}. Sibling relationships have been updated.")
 
 def add_relationship(person_id1, person_id2, relationship_type):
     conn = connect_to_db()
@@ -32,6 +53,27 @@ def add_relationship(person_id1, person_id2, relationship_type):
     conn.close()
     print(f"Relationship added between {person_id1} and {person_id2} as {relationship_type}.")
 
+
+def update_sibling_relationships(new_child_id, parent_id):
+    conn = connect_to_db()
+    cur = conn.cursor()
+
+    # Fetch existing children of the parent
+    cur.execute("""
+        SELECT person_id FROM persons
+        WHERE mother_id = %s OR father_id = %s;
+    """, (parent_id, parent_id))
+
+    existing_children_ids = [row[0] for row in cur.fetchall() if row[0] != new_child_id]
+
+    # For each existing child, create a sibling relationship with the new child
+    for child_id in existing_children_ids:
+        add_relationship(child_id, new_child_id, 'sibling')
+        add_relationship(new_child_id, child_id, 'sibling')
+
+    cur.close()
+    conn.close()
+
 def view_family_members():
     conn = connect_to_db()
     cur = conn.cursor()
@@ -41,19 +83,24 @@ def view_family_members():
     cur.close()
     conn.close()
 
-def show_tree_structure(person_id):
+
+def generate_tree_graph(person_id):
     conn = connect_to_db()
     cur = conn.cursor()
-    # Fetch the person's details
+
+    # Fetch the root person's details
     cur.execute("SELECT first_name, last_name FROM persons WHERE person_id = %s;", (person_id,))
     person = cur.fetchone()
+
+    dot = Digraph(comment='Family Tree')
     if person:
-        print(f"\nFamily Tree for {person[0]} {person[1]}:\n")
+        root_label = f"{person[0]} {person[1]}"
+        dot.node(str(person_id), root_label)
     else:
-        print("Person not found.")
+        print("Root person not found.")
         return
 
-    # Fetch and display relationships
+    # Fetch and add relationships
     cur.execute("""
         SELECT p.person_id, p.first_name, p.last_name, r.relationship_type
         FROM relationships r
@@ -61,11 +108,16 @@ def show_tree_structure(person_id):
         WHERE r.person_id1 = %s;
     """, (person_id,))
     for row in cur.fetchall():
-        print(f"{row[3].capitalize()}: {row[1]} {row[2]} (ID: {row[0]})")
+        child_label = f"{row[1]} {row[2]}"
+        dot.node(str(row[0]), child_label)
+        dot.edge(str(person_id), str(row[0]), label=row[3])
+
+    # Save the dot file and render it to a PDF
+    dot.render('family_tree.gv', view=True)
 
     cur.close()
     conn.close()
-
+    
 def main_menu():
     while True:
         print("\nFamily Tree App")
@@ -91,7 +143,7 @@ def main_menu():
             view_family_members()
         elif choice == '4':
             person_id = input("Enter person ID to show tree structure: ")
-            show_tree_structure(person_id)
+            generate_tree_graph(person_id)
         elif choice == '5':
             break
         else:
